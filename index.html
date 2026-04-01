@@ -1,0 +1,840 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>間違い探しゲーム</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Yu Gothic", "Hiragino Kaku Gothic ProN", sans-serif;
+      background: linear-gradient(180deg, #fff8e7 0%, #ffe9f2 100%);
+      color: #333;
+    }
+
+    .screen {
+      min-height: 100vh;
+      display: none;
+      padding: 16px;
+    }
+
+    .screen.active {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    h1, h2, p {
+      margin: 0;
+    }
+
+    .title-box, .clear-box, .game-box {
+      width: 100%;
+      max-width: 980px;
+      background: rgba(255,255,255,0.92);
+      border-radius: 24px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+      padding: 20px;
+    }
+
+    .title-main {
+      font-size: clamp(34px, 7vw, 56px);
+      font-weight: bold;
+      color: #ff5f8f;
+      text-align: center;
+      margin-bottom: 12px;
+    }
+
+    .title-sub {
+      font-size: clamp(16px, 3.8vw, 22px);
+      text-align: center;
+      margin-bottom: 28px;
+      line-height: 1.7;
+    }
+
+    .main-btn {
+      border: none;
+      border-radius: 999px;
+      padding: 16px 32px;
+      font-size: 20px;
+      font-weight: bold;
+      cursor: pointer;
+      color: white;
+      background: linear-gradient(90deg, #ff7aa2, #ffb347);
+      box-shadow: 0 6px 16px rgba(255, 122, 162, 0.35);
+      transition: transform 0.1s;
+    }
+
+    .main-btn:active {
+      transform: scale(0.97);
+    }
+
+    .game-header {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 14px;
+    }
+
+    .info-chip {
+      background: #fff4c7;
+      border-radius: 999px;
+      padding: 10px 16px;
+      font-weight: bold;
+      font-size: 16px;
+    }
+
+    .message {
+      min-height: 28px;
+      text-align: center;
+      font-weight: bold;
+      margin-bottom: 10px;
+      color: #e05d00;
+    }
+
+    .board-wrap {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 2 / 1;
+      max-height: 68vh;
+      background: #f7f7f7;
+      border-radius: 18px;
+      overflow: hidden;
+      border: 3px solid #ffd7e3;
+      touch-action: manipulation;
+    }
+
+    .panel {
+      position: absolute;
+      top: 0;
+      width: 50%;
+      height: 100%;
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+    }
+
+    .panel.left {
+      left: 0;
+      border-right: 2px dashed rgba(255,255,255,0.7);
+    }
+
+    .panel.right {
+      left: 50%;
+    }
+
+    .panel-label {
+      position: absolute;
+      top: 10px;
+      padding: 6px 12px;
+      background: rgba(255,255,255,0.9);
+      border-radius: 999px;
+      font-weight: bold;
+      z-index: 5;
+    }
+
+    .label-left {
+      left: 12px;
+    }
+
+    .label-right {
+      right: 12px;
+    }
+
+    .mark {
+      position: absolute;
+      width: 54px;
+      height: 54px;
+      border: 5px solid #ff3b4f;
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+      z-index: 10;
+      box-shadow: 0 0 0 3px rgba(255,255,255,0.85) inset;
+      animation: pop 0.18s ease-out;
+    }
+
+    @keyframes pop {
+      from {
+        transform: translate(-50%, -50%) scale(0.5);
+        opacity: 0.3;
+      }
+      to {
+        transform: translate(-50%, -50%) scale(1);
+        opacity: 1;
+      }
+    }
+
+    .hint {
+      text-align: center;
+      margin-top: 12px;
+      color: #666;
+      font-size: 14px;
+    }
+
+    .clear-title {
+      font-size: clamp(32px, 7vw, 54px);
+      color: #ff5f8f;
+      text-align: center;
+      font-weight: bold;
+      margin-bottom: 18px;
+    }
+
+    .result-line {
+      font-size: clamp(20px, 5vw, 30px);
+      text-align: center;
+      margin-bottom: 12px;
+      font-weight: bold;
+    }
+
+    .sub-result {
+      font-size: clamp(16px, 4vw, 22px);
+      text-align: center;
+      line-height: 1.8;
+      margin-bottom: 24px;
+    }
+
+    .btn-row {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    @media (max-width: 720px) {
+      .game-box, .title-box, .clear-box {
+        padding: 14px;
+      }
+
+      .board-wrap {
+        aspect-ratio: 1 / 1.2;
+        max-height: none;
+      }
+
+      .panel {
+        width: 100%;
+        height: 50%;
+      }
+
+      .panel.left {
+        left: 0;
+        top: 0;
+        border-right: none;
+        border-bottom: 2px dashed rgba(255,255,255,0.7);
+      }
+
+      .panel.right {
+        left: 0;
+        top: 50%;
+      }
+
+      .label-left {
+        left: 10px;
+        top: 10px;
+      }
+
+      .label-right {
+        right: 10px;
+        top: calc(50% + 10px);
+      }
+
+      .mark {
+        width: 46px;
+        height: 46px;
+        border-width: 4px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- タイトル画面 -->
+  <section id="titleScreen" class="screen active">
+    <div class="title-box">
+      <h1 class="title-main">間違い探しゲーム</h1>
+      <p class="title-sub">
+        全5問の間違い探しです。<br>
+        左右の絵を見比べて、違うところをタップまたはクリックしてください。
+      </p>
+      <div style="text-align:center;">
+        <button class="main-btn" id="startBtn">スタート</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ゲーム画面 -->
+  <section id="gameScreen" class="screen">
+    <div class="game-box">
+      <div class="game-header">
+        <div class="info-chip" id="stageText">第1問 / 全5問</div>
+        <div class="info-chip" id="foundText">見つけた数 0 / 3</div>
+        <div class="info-chip" id="timeText">時間 0.0 秒</div>
+      </div>
+
+      <div class="message" id="messageText">違うところを探してタップ！</div>
+
+      <div class="board-wrap" id="board">
+        <div class="panel-label label-left">左の絵</div>
+        <div class="panel-label label-right">右の絵</div>
+        <div class="panel left" id="leftPanel"></div>
+        <div class="panel right" id="rightPanel"></div>
+      </div>
+
+      <div class="hint">正解すると左右の絵に〇がつきます。</div>
+    </div>
+  </section>
+
+  <!-- クリア画面 -->
+  <section id="clearScreen" class="screen">
+    <div class="clear-box">
+      <h2 class="clear-title">クリア！</h2>
+      <p class="result-line" id="finalTimeText">解答時間：0.0 秒</p>
+      <p class="sub-result" id="finalComment">全5問クリアしました！すごい！</p>
+      <div class="btn-row">
+        <button class="main-btn" id="retryBtn">もう一度遊ぶ</button>
+      </div>
+    </div>
+  </section>
+
+  <script>
+    const stages = [
+      {
+        scene: {
+          sky: "#9dd8ff",
+          ground: "#9fe08f",
+          houseColor: "#ffcc80",
+          roofColor: "#e46c6c",
+          sun: true,
+          cloud: true,
+          tree: true,
+          fence: true
+        },
+        diffs: [
+          {
+            id: "sun",
+            leftShape: { type: "circle", cx: 118, cy: 78, r: 32, fill: "#ffd84d" },
+            rightShape:{ type: "circle", cx: 118, cy: 78, r: 22, fill: "#ffd84d" },
+            leftMark:  { x: 118, y: 78 },
+            rightMark: { x: 118, y: 78 }
+          },
+          {
+            id: "window",
+            leftShape: { type: "rect", x: 240, y: 170, w: 44, h: 38, fill: "#9be0ff", stroke: "#555", sw: 3 },
+            rightShape:{ type: "rect", x: 240, y: 170, w: 44, h: 38, fill: "#ffb3c1", stroke: "#555", sw: 3 },
+            leftMark:  { x: 262, y: 189 },
+            rightMark: { x: 262, y: 189 }
+          },
+          {
+            id: "treeApple",
+            leftShape: { type: "circle", cx: 98, cy: 184, r: 0, fill: "#ff4d4d" },
+            rightShape:{ type: "circle", cx: 98, cy: 184, r: 9, fill: "#ff4d4d" },
+            leftMark:  { x: 98, y: 184 },
+            rightMark: { x: 98, y: 184 }
+          }
+        ]
+      },
+      {
+        scene: {
+          sky: "#bfe8ff",
+          ground: "#f7d28f",
+          boat: true,
+          fish: true,
+          sun: true,
+          cloud: true
+        },
+        diffs: [
+          {
+            id: "sail",
+            leftShape: { type: "polygon", points: "206,190 206,112 265,190", fill: "#ffffff", stroke: "#555", sw: 3 },
+            rightShape:{ type: "polygon", points: "206,190 206,112 286,190", fill: "#ffffff", stroke: "#555", sw: 3 },
+            leftMark:  { x: 250, y: 154 },
+            rightMark: { x: 258, y: 154 }
+          },
+          {
+            id: "fish",
+            leftShape: { type: "ellipse", cx: 108, cy: 266, rx: 18, ry: 10, fill: "#ff8ccf" },
+            rightShape:{ type: "ellipse", cx: 128, cy: 266, rx: 18, ry: 10, fill: "#ff8ccf" },
+            leftMark:  { x: 108, y: 266 },
+            rightMark: { x: 128, y: 266 }
+          },
+          {
+            id: "sunColor",
+            leftShape: { type: "circle", cx: 72, cy: 70, r: 28, fill: "#ffd84d" },
+            rightShape:{ type: "circle", cx: 72, cy: 70, r: 28, fill: "#ff9f43" },
+            leftMark:  { x: 72, y: 70 },
+            rightMark: { x: 72, y: 70 }
+          }
+        ]
+      },
+      {
+        scene: {
+          sky: "#d7f0ff",
+          ground: "#c8f0b3",
+          mountain: true,
+          tent: true,
+          campfire: true,
+          star: true
+        },
+        diffs: [
+          {
+            id: "tentFlag",
+            leftShape: { type: "polygon", points: "230,113 254,122 230,131", fill: "#ff5f8f" },
+            rightShape:{ type: "polygon", points: "", fill: "#ff5f8f" },
+            leftMark:  { x: 242, y: 122 },
+            rightMark: { x: 242, y: 122 }
+          },
+          {
+            id: "fire",
+            leftShape: { type: "path", d: "M178 236 C168 220,175 208,186 201 C198 211,202 224,196 238 Z", fill: "#ff7a00" },
+            rightShape:{ type: "path", d: "M178 236 C168 220,175 208,186 201 C198 211,202 224,196 238 Z", fill: "#ff2d55" },
+            leftMark:  { x: 186, y: 220 },
+            rightMark: { x: 186, y: 220 }
+          },
+          {
+            id: "star",
+            leftShape: { type: "text", x: 84, y: 70, value: "★", size: 28, fill: "#ffd84d" },
+            rightShape:{ type: "text", x: 84, y: 70, value: "", size: 28, fill: "#ffd84d" },
+            leftMark:  { x: 84, y: 62 },
+            rightMark: { x: 84, y: 62 }
+          }
+        ]
+      },
+      {
+        scene: {
+          sky: "#cde7ff",
+          ground: "#f8f1b9",
+          cat: true,
+          ball: true,
+          tree: true,
+          cloud: true
+        },
+        diffs: [
+          {
+            id: "ball",
+            leftShape: { type: "circle", cx: 272, cy: 246, r: 21, fill: "#ff7aa2" },
+            rightShape:{ type: "circle", cx: 272, cy: 246, r: 21, fill: "#5dc6ff" },
+            leftMark:  { x: 272, y: 246 },
+            rightMark: { x: 272, y: 246 }
+          },
+          {
+            id: "catTail",
+            leftShape: { type: "path", d: "M178 210 Q220 188 222 228", fill: "none", stroke: "#925b2b", sw: 7 },
+            rightShape:{ type: "path", d: "M178 210 Q210 176 204 150", fill: "none", stroke: "#925b2b", sw: 7 },
+            leftMark:  { x: 214, y: 205 },
+            rightMark: { x: 206, y: 174 }
+          },
+          {
+            id: "cloud",
+            leftShape: { type: "ellipse", cx: 260, cy: 82, rx: 38, ry: 20, fill: "#ffffff" },
+            rightShape:{ type: "ellipse", cx: 290, cy: 82, rx: 38, ry: 20, fill: "#ffffff" },
+            leftMark:  { x: 260, y: 82 },
+            rightMark: { x: 290, y: 82 }
+          }
+        ]
+      },
+      {
+        scene: {
+          sky: "#e3f6ff",
+          ground: "#d1f0a4",
+          train: true,
+          sun: true,
+          cloud: true,
+          bird: true
+        },
+        diffs: [
+          {
+            id: "trainWindow",
+            leftShape: { type: "rect", x: 170, y: 178, w: 34, h: 28, fill: "#9be0ff", stroke: "#444", sw: 3 },
+            rightShape:{ type: "rect", x: 170, y: 178, w: 34, h: 28, fill: "#9be0ff", stroke: "#444", sw: 3, extraLine: true },
+            leftMark:  { x: 187, y: 192 },
+            rightMark: { x: 187, y: 192 }
+          },
+          {
+            id: "bird",
+            leftShape: { type: "text", x: 272, y: 72, value: "🕊", size: 28, fill: "#333" },
+            rightShape:{ type: "text", x: 272, y: 72, value: "", size: 28, fill: "#333" },
+            leftMark:  { x: 280, y: 62 },
+            rightMark: { x: 280, y: 62 }
+          },
+          {
+            id: "frontLight",
+            leftShape: { type: "circle", cx: 316, cy: 214, r: 10, fill: "#ffd84d" },
+            rightShape:{ type: "circle", cx: 316, cy: 214, r: 10, fill: "#ffffff" },
+            leftMark:  { x: 316, y: 214 },
+            rightMark: { x: 316, y: 214 }
+          }
+        ]
+      }
+    ];
+
+    const titleScreen = document.getElementById("titleScreen");
+    const gameScreen = document.getElementById("gameScreen");
+    const clearScreen = document.getElementById("clearScreen");
+
+    const board = document.getElementById("board");
+    const leftPanel = document.getElementById("leftPanel");
+    const rightPanel = document.getElementById("rightPanel");
+
+    const stageText = document.getElementById("stageText");
+    const foundText = document.getElementById("foundText");
+    const timeText = document.getElementById("timeText");
+    const messageText = document.getElementById("messageText");
+    const finalTimeText = document.getElementById("finalTimeText");
+    const finalComment = document.getElementById("finalComment");
+
+    const startBtn = document.getElementById("startBtn");
+    const retryBtn = document.getElementById("retryBtn");
+
+    let currentStage = 0;
+    let foundIds = new Set();
+    let gameStartTime = 0;
+    let timerId = null;
+    let canTap = true;
+
+    function showScreen(screen) {
+      [titleScreen, gameScreen, clearScreen].forEach(s => s.classList.remove("active"));
+      screen.classList.add("active");
+    }
+
+    function startGame() {
+      currentStage = 0;
+      foundIds = new Set();
+      gameStartTime = performance.now();
+      clearInterval(timerId);
+      timerId = setInterval(updateTimer, 100);
+      showScreen(gameScreen);
+      loadStage();
+    }
+
+    function updateTimer() {
+      const seconds = ((performance.now() - gameStartTime) / 1000).toFixed(1);
+      timeText.textContent = `時間 ${seconds} 秒`;
+    }
+
+    function finishGame() {
+      clearInterval(timerId);
+      const total = ((performance.now() - gameStartTime) / 1000).toFixed(1);
+      finalTimeText.textContent = `解答時間：${total} 秒`;
+
+      let comment = "全5問クリアしました！すごい！";
+      const num = parseFloat(total);
+      if (num <= 25) comment = "すごい速さです！達人レベル！";
+      else if (num <= 40) comment = "とても上手です！";
+      else if (num <= 60) comment = "クリアおめでとうございます！";
+      else comment = "最後までよく見つけました！";
+
+      finalComment.textContent = comment;
+      showScreen(clearScreen);
+    }
+
+    function loadStage() {
+      foundIds = new Set();
+      canTap = true;
+      removeMarks();
+
+      const stage = stages[currentStage];
+      stageText.textContent = `第${currentStage + 1}問 / 全${stages.length}問`;
+      foundText.textContent = `見つけた数 0 / ${stage.diffs.length}`;
+      messageText.textContent = "違うところを探してタップ！";
+
+      leftPanel.style.backgroundImage = `url("${buildSceneSvg(stage, "left")}")`;
+      rightPanel.style.backgroundImage = `url("${buildSceneSvg(stage, "right")}")`;
+    }
+
+    function buildSceneSvg(stage, side) {
+      const base = stage.scene;
+      let svg = `
+        <svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 300'>
+          <rect x='0' y='0' width='400' height='300' fill='${base.sky}'/>
+          <rect x='0' y='220' width='400' height='80' fill='${base.ground}'/>
+      `;
+
+      if (base.sun) {
+        svg += renderShape({ type: "circle", cx: 62, cy: 60, r: 26, fill: "#ffd84d" });
+      }
+      if (base.cloud) {
+        svg += `
+          <ellipse cx='290' cy='70' rx='34' ry='18' fill='white'/>
+          <ellipse cx='314' cy='66' rx='28' ry='16' fill='white'/>
+          <ellipse cx='266' cy='66' rx='26' ry='16' fill='white'/>
+        `;
+      }
+
+      if (base.houseColor) {
+        svg += `
+          <rect x='190' y='140' width='120' height='90' rx='4' fill='${base.houseColor}' stroke='#555' stroke-width='3'/>
+          <polygon points='180,145 250,95 320,145' fill='${base.roofColor}' stroke='#555' stroke-width='3'/>
+          <rect x='255' y='186' width='28' height='44' fill='#8b5a2b' stroke='#555' stroke-width='3'/>
+          <rect x='214' y='170' width='34' height='30' fill='#9be0ff' stroke='#555' stroke-width='3'/>
+          <rect x='240' y='170' width='44' height='38' fill='#9be0ff' stroke='#555' stroke-width='3'/>
+        `;
+      }
+
+      if (base.tree) {
+        svg += `
+          <rect x='76' y='170' width='18' height='62' fill='#8b5a2b'/>
+          <circle cx='85' cy='156' r='30' fill='#4caf50'/>
+          <circle cx='108' cy='168' r='22' fill='#48b04b'/>
+          <circle cx='66' cy='172' r='22' fill='#58be59'/>
+        `;
+      }
+
+      if (base.fence) {
+        for (let x = 20; x < 380; x += 22) {
+          svg += `<rect x='${x}' y='230' width='10' height='36' fill='#fff4df' stroke='#b7a28b' stroke-width='2'/>`;
+        }
+        svg += `<rect x='0' y='240' width='400' height='8' fill='#fff4df' stroke='#b7a28b' stroke-width='2'/>`;
+        svg += `<rect x='0' y='256' width='400' height='8' fill='#fff4df' stroke='#b7a28b' stroke-width='2'/>`;
+      }
+
+      if (base.boat) {
+        svg += `
+          <rect x='0' y='210' width='400' height='90' fill='#77c9ff'/>
+          <path d='M120 208 L300 208 L280 242 L142 242 Z' fill='#8c5a2b' stroke='#555' stroke-width='3'/>
+          <rect x='202' y='110' width='6' height='98' fill='#6f4e37'/>
+        `;
+      }
+
+      if (base.fish) {
+        svg += `
+          <ellipse cx='108' cy='266' rx='18' ry='10' fill='#ff8ccf'/>
+          <polygon points='124,266 138,258 138,274' fill='#ff8ccf'/>
+          <circle cx='100' cy='264' r='2.5' fill='#333'/>
+        `;
+      }
+
+      if (base.mountain) {
+        svg += `
+          <polygon points='20,220 120,90 220,220' fill='#8ea4c9'/>
+          <polygon points='130,220 250,70 360,220' fill='#6c87b6'/>
+          <polygon points='100,120 120,90 140,120' fill='white'/>
+          <polygon points='228,98 250,70 272,98' fill='white'/>
+        `;
+      }
+
+      if (base.tent) {
+        svg += `
+          <polygon points='210,220 280,130 350,220' fill='#ffb347' stroke='#555' stroke-width='3'/>
+          <polygon points='246,220 280,160 314,220' fill='#ff8f1f' stroke='#555' stroke-width='3'/>
+          <line x1='280' y1='130' x2='280' y2='220' stroke='#555' stroke-width='3'/>
+        `;
+      }
+
+      if (base.campfire) {
+        svg += `
+          <line x1='150' y1='240' x2='194' y2='214' stroke='#7b4f27' stroke-width='7'/>
+          <line x1='194' y1='240' x2='150' y2='214' stroke='#7b4f27' stroke-width='7'/>
+          <path d='M178 236 C168 220,175 208,186 201 C198 211,202 224,196 238 Z' fill='#ff7a00'/>
+        `;
+      }
+
+      if (base.star) {
+        svg += `<text x='84' y='70' font-size='28' fill='#ffd84d'>★</text>`;
+      }
+
+      if (base.cat) {
+        svg += `
+          <ellipse cx='130' cy='226' rx='52' ry='34' fill='#b97a3d'/>
+          <circle cx='94' cy='190' r='26' fill='#b97a3d'/>
+          <polygon points='76,173 86,149 96,176' fill='#b97a3d'/>
+          <polygon points='92,176 108,149 114,177' fill='#b97a3d'/>
+          <circle cx='86' cy='188' r='3' fill='#333'/>
+          <circle cx='100' cy='188' r='3' fill='#333'/>
+          <ellipse cx='94' cy='198' rx='5' ry='4' fill='#ff9cb1'/>
+          <path d='M178 210 Q220 188 222 228' fill='none' stroke='#925b2b' stroke-width='7'/>
+        `;
+      }
+
+      if (base.ball) {
+        svg += `<circle cx='272' cy='246' r='21' fill='#ff7aa2' stroke='#555' stroke-width='3'/>`;
+      }
+
+      if (base.train) {
+        svg += `
+          <rect x='80' y='170' width='250' height='60' rx='8' fill='#ff7575' stroke='#555' stroke-width='3'/>
+          <rect x='104' y='178' width='34' height='28' fill='#9be0ff' stroke='#444' stroke-width='3'/>
+          <rect x='170' y='178' width='34' height='28' fill='#9be0ff' stroke='#444' stroke-width='3'/>
+          <rect x='236' y='178' width='34' height='28' fill='#9be0ff' stroke='#444' stroke-width='3'/>
+          <rect x='302' y='188' width='20' height='22' fill='#ffd84d' stroke='#444' stroke-width='3'/>
+          <circle cx='124' cy='236' r='18' fill='#444'/>
+          <circle cx='214' cy='236' r='18' fill='#444'/>
+          <circle cx='294' cy='236' r='18' fill='#444'/>
+          <rect x='60' y='230' width='290' height='8' fill='#666'/>
+        `;
+      }
+
+      if (base.bird) {
+        svg += `<text x='272' y='72' font-size='28'>🕊</text>`;
+      }
+
+      const stageDiffs = stage.diffs;
+      for (const diff of stageDiffs) {
+        const shape = side === "left" ? diff.leftShape : diff.rightShape;
+        svg += renderShape(shape);
+        if (shape && shape.extraLine) {
+          svg += `<line x1='187' y1='178' x2='187' y2='206' stroke='#444' stroke-width='3'/>`;
+        }
+      }
+
+      svg += `</svg>`;
+      return "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(svg);
+    }
+
+    function renderShape(shape) {
+      if (!shape || (shape.type === "polygon" && !shape.points) || (shape.type === "text" && !shape.value)) return "";
+
+      switch (shape.type) {
+        case "circle":
+          if (!shape.r || shape.r <= 0) return "";
+          return `<circle cx='${shape.cx}' cy='${shape.cy}' r='${shape.r}' fill='${shape.fill || "none"}' stroke='${shape.stroke || "none"}' stroke-width='${shape.sw || 0}' />`;
+        case "rect":
+          return `<rect x='${shape.x}' y='${shape.y}' width='${shape.w}' height='${shape.h}' fill='${shape.fill || "none"}' stroke='${shape.stroke || "none"}' stroke-width='${shape.sw || 0}' rx='${shape.rx || 0}' />`;
+        case "ellipse":
+          return `<ellipse cx='${shape.cx}' cy='${shape.cy}' rx='${shape.rx}' ry='${shape.ry}' fill='${shape.fill || "none"}' stroke='${shape.stroke || "none"}' stroke-width='${shape.sw || 0}' />`;
+        case "polygon":
+          return `<polygon points='${shape.points}' fill='${shape.fill || "none"}' stroke='${shape.stroke || "none"}' stroke-width='${shape.sw || 0}' />`;
+        case "path":
+          return `<path d='${shape.d}' fill='${shape.fill || "none"}' stroke='${shape.stroke || "none"}' stroke-width='${shape.sw || 0}' />`;
+        case "text":
+          return `<text x='${shape.x}' y='${shape.y}' font-size='${shape.size || 24}' fill='${shape.fill || "#000"}'>${shape.value}</text>`;
+        default:
+          return "";
+      }
+    }
+
+    function removeMarks() {
+      board.querySelectorAll(".mark").forEach(el => el.remove());
+    }
+
+    function placeMark(panelSide, point) {
+      const boardRect = board.getBoundingClientRect();
+      const isMobile = window.innerWidth <= 720;
+
+      const mark = document.createElement("div");
+      mark.className = "mark";
+
+      if (!isMobile) {
+        const panelLeft = panelSide === "left" ? 0 : boardRect.width / 2;
+        mark.style.left = `${panelLeft + (point.x / 400) * (boardRect.width / 2)}px`;
+        mark.style.top = `${(point.y / 300) * boardRect.height}px`;
+      } else {
+        const panelTop = panelSide === "left" ? 0 : boardRect.height / 2;
+        mark.style.left = `${(point.x / 400) * boardRect.width}px`;
+        mark.style.top = `${panelTop + (point.y / 300) * (boardRect.height / 2)}px`;
+      }
+
+      board.appendChild(mark);
+    }
+
+    function getNormalizedPos(clientX, clientY) {
+      const rect = board.getBoundingClientRect();
+      const x = clientX - rect.left;
+      const y = clientY - rect.top;
+      const isMobile = window.innerWidth <= 720;
+
+      let side, localX, localY;
+      if (!isMobile) {
+        side = x < rect.width / 2 ? "left" : "right";
+        localX = side === "left" ? x : x - rect.width / 2;
+        localY = y;
+        return {
+          side,
+          x: (localX / (rect.width / 2)) * 400,
+          y: (localY / rect.height) * 300
+        };
+      } else {
+        side = y < rect.height / 2 ? "left" : "right";
+        localX = x;
+        localY = side === "left" ? y : y - rect.height / 2;
+        return {
+          side,
+          x: (localX / rect.width) * 400,
+          y: (localY / (rect.height / 2)) * 300
+        };
+      }
+    }
+
+    function distance(a, b) {
+      return Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2);
+    }
+
+    function handleBoardTap(clientX, clientY) {
+      if (!canTap) return;
+
+      const pos = getNormalizedPos(clientX, clientY);
+      const stage = stages[currentStage];
+      let hit = false;
+
+      for (const diff of stage.diffs) {
+        if (foundIds.has(diff.id)) continue;
+        const target = pos.side === "left" ? diff.leftMark : diff.rightMark;
+
+        if (distance(pos, target) <= 28) {
+          foundIds.add(diff.id);
+          hit = true;
+
+          placeMark("left", diff.leftMark);
+          placeMark("right", diff.rightMark);
+
+          foundText.textContent = `見つけた数 ${foundIds.size} / ${stage.diffs.length}`;
+          messageText.textContent = "正解！";
+
+          if (foundIds.size === stage.diffs.length) {
+            canTap = false;
+            messageText.textContent = "この問題クリア！";
+            setTimeout(() => {
+              currentStage++;
+              if (currentStage >= stages.length) {
+                finishGame();
+              } else {
+                loadStage();
+              }
+            }, 900);
+          }
+          break;
+        }
+      }
+
+      if (!hit) {
+        messageText.textContent = "そこは違うみたい…";
+      }
+    }
+
+    board.addEventListener("click", (e) => {
+      handleBoardTap(e.clientX, e.clientY);
+    });
+
+    board.addEventListener("touchstart", (e) => {
+      const t = e.touches[0];
+      handleBoardTap(t.clientX, t.clientY);
+    }, { passive: true });
+
+    startBtn.addEventListener("click", startGame);
+    retryBtn.addEventListener("click", () => {
+      showScreen(titleScreen);
+      timeText.textContent = "時間 0.0 秒";
+    });
+
+    window.addEventListener("resize", () => {
+      const existingMarks = [...foundIds];
+      removeMarks();
+      const stage = stages[currentStage];
+      for (const id of existingMarks) {
+        const diff = stage.diffs.find(d => d.id === id);
+        if (diff) {
+          placeMark("left", diff.leftMark);
+          placeMark("right", diff.rightMark);
+        }
+      }
+    });
+  </script>
+</body>
+</html>
